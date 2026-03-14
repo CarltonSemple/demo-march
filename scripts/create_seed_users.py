@@ -56,14 +56,16 @@ def upsert_user_document_via_function(
     admin_api_key: str,
     user_id: str,
     email: str,
+    role: str,
     display_name: str | None,
     phone_number: str | None,
 ) -> tuple[int, str]:
-    url = base_url.rstrip("/") + "/create_user"
+    url = base_url.rstrip("/") + "/createUser"
 
     payload = {
         "id": user_id,
         "email": email,
+        "role": role,
         "displayName": display_name or "",
         "phone": phone_number or "",
     }
@@ -234,7 +236,7 @@ def main():
     parser.add_argument(
         "--admin-api-key",
         default=None,
-        help="Admin key for calling the create_user Cloud Function (defaults to ADMIN_API_KEY env var)",
+        help="Admin key for calling the createUser Cloud Function (defaults to ADMIN_API_KEY env var)",
     )
     parser.add_argument("--project-id", default=DEFAULT_PROJECT_ID, help="Firebase project id")
     args = parser.parse_args()
@@ -270,6 +272,7 @@ def main():
         user_id = user.get("id")
         email = user.get("email")
         password = user.get("password") or "password123"
+        role = (user.get("role") or "").strip()
         display_name = user.get("displayName")
         phone_number = user.get("phone") or user.get("whatsapp") or "+15555550123"
 
@@ -280,6 +283,11 @@ def main():
 
         if not email:
             print(f"Skipping user without email: {user_id}")
+            failed_count += 1
+            continue
+
+        if role not in ("coach", "member"):
+            print(f"Skipping user with invalid role: {email} ({user_id}) role={role or 'missing'}")
             failed_count += 1
             continue
 
@@ -302,6 +310,7 @@ def main():
                 admin_api_key=admin_api_key,
                 user_id=user_id,
                 email=email,
+                role=role,
                 display_name=display_name,
                 phone_number=phone_number,
             )

@@ -55,11 +55,11 @@ Endpoints
 	- GET query: `groupId` (required)
 	- POST body (JSON): `{ groupId, text }`
 
-`create_user` (HTTP)
+`createUser` (HTTP)
 	- Methods: POST, OPTIONS
 	- CORS: enabled
 	- Purpose: Upsert a user document into Firestore (`users/{id}`)
-	- Body (JSON): `{ id, email, displayName?, phone? }`
+	- Body (JSON): `{ id, email, role, displayName?, phone? }` (`role` is `coach` or `member`)
 	- Security:
 		- In emulators: allowed without auth
 		- In non-emulator environments: requires `ADMIN_API_KEY` and `X-Admin-Key` header
@@ -103,7 +103,7 @@ def announcements(req: https_fn.Request) -> https_fn.Response:
 
 
 @https_fn.on_request(cors=CorsOptions(cors_origins="*", cors_methods=["POST", "OPTIONS"]))
-def create_user(req: https_fn.Request) -> https_fn.Response:
+def createUser(req: https_fn.Request) -> https_fn.Response:
 	"""Create/Update a user document.
 
 	See module docstring for request/response shape.

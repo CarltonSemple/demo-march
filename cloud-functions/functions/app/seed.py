@@ -6,6 +6,7 @@ def build_seed_users() -> list[dict]:
     Supported keys per user:
     - id (required): UID
     - email (required)
+    - role (required): 'coach' or 'member'
     - password (optional; default handled by the script)
     - displayName (optional)
     - phone (optional)
@@ -15,6 +16,7 @@ def build_seed_users() -> list[dict]:
         {
             "id": "coach-default",
             "email": "coach@example.com",
+            "role": "coach",
             "password": "password123",
             "displayName": "Coach Carter",
             "phone": "+15555550123",
