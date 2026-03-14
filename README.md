@@ -14,7 +14,8 @@
 
 - Install + run (from `coach-mini-app/server`):
 	- `npm install`
-	- `set PY_FUNCTION_BASE_URL=http://127.0.0.1:5001/coach-app-demo-3132026/us-central1`
+	- (optional) `set PY_FUNCTION_BASE_URL=http://127.0.0.1:5001/coach-app-demo-3132026/us-central1`
+		- If unset, defaults to `http://127.0.0.1:5001/<project>/<region>` using `FIREBASE_PROJECT`/`GCLOUD_PROJECT` and `FUNCTION_REGION`.
 	- `npm run dev`
 
 ### React web

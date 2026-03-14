@@ -1,5 +1,17 @@
 import express from "express";
 
+function getPythonFunctionBaseUrl() {
+  const explicit = (process.env.PY_FUNCTION_BASE_URL || "").trim();
+  if (explicit) return explicit;
+
+  const projectId =
+    (process.env.FIREBASE_PROJECT || "").trim() ||
+    (process.env.GCLOUD_PROJECT || "").trim() ||
+    "coach-app-demo-3132026";
+  const region = (process.env.FUNCTION_REGION || "").trim() || "us-central1";
+  return `http://127.0.0.1:5001/${projectId}/${region}`;
+}
+
 export function createApp() {
   const app = express();
 
@@ -11,12 +23,7 @@ export function createApp() {
   // GET /api/python/hello?name=Casey
   app.get("/api/python/hello", async (req, res) => {
     try {
-      const pythonBaseUrl = (process.env.PY_FUNCTION_BASE_URL || "").trim();
-      if (!pythonBaseUrl) {
-        return res.status(500).json({
-          error: "PY_FUNCTION_BASE_URL is not set",
-        });
-      }
+      const pythonBaseUrl = getPythonFunctionBaseUrl();
 
       const url = new URL(pythonBaseUrl.replace(/\/+$/, "") + "/hello");
       if (typeof req.query.name === "string" && req.query.name.trim()) {
