@@ -20,5 +20,13 @@ def build_seed_users() -> list[dict]:
             "password": "password123",
             "displayName": "Coach Carter",
             "phone": "+15555550123",
+        },
+        {
+            "id": "member-john-doe",
+            "email": "john.doe@example.com",
+            "role": "member",
+            "password": "password123",
+            "displayName": "John Doe",
+            "phone": "+15555550124",
         }
     ]
