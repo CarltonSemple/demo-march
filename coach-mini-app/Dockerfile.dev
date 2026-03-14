@@ -1,0 +1,37 @@
+# Full-stack dev container: Express (3005) + React/Vite (3000)
+#
+# Build/run (from repo root):
+#   docker build -t coach-mini-app -f coach-mini-app/Dockerfile.dev .
+#   docker run --rm -it -p 3000:3000 -p 3005:3005 coach-mini-app
+#
+# If emulators are running on your host (Docker Desktop), set:
+#   -e PY_FUNCTION_BASE_URL=http://host.docker.internal:5001/coach-app-demo-3132026/us-central1
+
+FROM node:20-bookworm-slim
+
+SHELL ["/bin/bash", "-lc"]
+
+ENV NODE_ENV=development \
+    PORT=3005 \
+    PY_FUNCTION_BASE_URL=http://host.docker.internal:5001/coach-app-demo-3132026/us-central1
+
+WORKDIR /workspace/coach-mini-app
+
+# Install server deps (cache-friendly)
+COPY coach-mini-app/server/package.json coach-mini-app/server/package-lock.json ./server/
+RUN cd server && npm ci
+
+# Install web deps (cache-friendly)
+COPY coach-mini-app/web/package.json coach-mini-app/web/package-lock.json ./web/
+RUN cd web && npm ci
+
+# Copy the actual source after installing deps
+COPY coach-mini-app/server ./server
+COPY coach-mini-app/web ./web
+
+COPY coach-mini-app/start-dev.sh ./start-dev.sh
+RUN chmod +x ./start-dev.sh
+
+EXPOSE 3000 3005
+
+CMD ["./start-dev.sh"]

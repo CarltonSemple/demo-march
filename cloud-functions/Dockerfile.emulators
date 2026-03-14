@@ -1,0 +1,60 @@
+# Runs Firebase emulators with the same toolchain as .github/workflows/cloud-function-integration.yml
+# - Java 21 (Firestore emulator)
+# - Node.js 20 + firebase-tools
+# - Python 3.13 + venv under cloud-functions/functions/venv
+#
+# Usage (from the cloud-functions/ directory):
+#   docker build -t emulators -f Dockerfile.emulators .
+#   docker run --rm -it -p 5001:5001 -p 8081:8081 emulators
+#
+# If you prefer bind-mounting your working tree (so edits apply without rebuild):
+#   docker run --rm -it -p 5001:5001 -p 8081:8081 \
+#     -v "$(pwd)":/workspace/cloud-functions \
+#     emulators
+# Note: bind-mounting over /workspace/cloud-functions will hide the image's prebuilt
+# venv at functions/venv. For that workflow, mount only specific subfolders or use a
+# named volume for /workspace/cloud-functions/functions/venv.
+
+FROM python:3.13-slim-bookworm
+
+SHELL ["/bin/bash", "-lc"]
+
+# Install Java 21 JRE (Temurin) for the Firestore emulator.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends curl ca-certificates tar gnupg dirmngr \
+  && mkdir -p /opt/java \
+  && curl -fsSL "https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jre/hotspot/normal/eclipse" -o /tmp/jre21.tar.gz \
+  && tar -xzf /tmp/jre21.tar.gz --strip-components=1 -C /opt/java \
+  && rm -f /tmp/jre21.tar.gz \
+  && ln -sf /opt/java/bin/java /usr/local/bin/java \
+  && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20 (same major version as CI) and Firebase CLI.
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends nodejs \
+  && npm install -g firebase-tools \
+  && rm -rf /var/lib/apt/lists/*
+
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PYTHONUNBUFFERED=1 \
+    FIREBASE_PROJECT=coach-app-demo-3132026 \
+    FUNCTION_REGION=us-central1
+
+WORKDIR /workspace/cloud-functions
+
+# Install Python deps into a venv during build for better caching.
+# This mirrors CI's venv location: cloud-functions/functions/venv
+COPY functions/requirements.txt functions/requirements-dev.txt /workspace/cloud-functions/functions/
+RUN python -m venv functions/venv \
+  && source functions/venv/bin/activate \
+  && python -m pip install --upgrade pip \
+  && pip install -r functions/requirements.txt -r functions/requirements-dev.txt
+
+# Copy the rest of the Firebase project into the image.
+# (Build context must be the cloud-functions/ directory.)
+COPY . /workspace/cloud-functions
+
+EXPOSE 5001 8081 4001 9099
+
+CMD firebase emulators:start --project "${FIREBASE_PROJECT}" --only auth,functions,firestore,ui

@@ -1,0 +1,21 @@
+# Keep Docker build context small (this Dockerfile is built from cloud-functions/)
+
+# Logs / emulator output
+firestore-debug.log
+firebase-debug.log
+firebase-debug.*.log
+
+# Python
+functions/venv/
+functions/__pycache__/
+functions/.pytest_cache/
+functions/**/*.pyc
+functions/**/*.pyo
+
+# Git / editor
+.git/
+.vscode/
+.DS_Store
+
+# Firebase local state
+.firebase/
