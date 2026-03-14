@@ -115,9 +115,12 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (view !== "announcements") return;
-    refreshAnnouncements();
-    refreshMeetings();
+    if (view === "announcements") {
+      refreshAnnouncements();
+    }
+    if (view === "meetings") {
+      refreshMeetings();
+    }
   }, [view]);
 
   async function onSaveProfile(e) {
@@ -194,32 +197,62 @@ export default function App() {
   }
 
   return (
-    <div className="page">
-      <header className="header">
-        <h1>Coach Mini App</h1>
-        <p className="subtle">Profile • Announcements • Meetings (Group: {groupId})</p>
+    <div className="appShell">
+      <aside className="sidebar" aria-label="Sidebar">
+        <div className="sidebarHeader">
+          <div>
+            <div className="brand">Coach Mini App</div>
+            <div className="subtle">Coach tools</div>
+          </div>
 
-        <nav className="tabs">
+          <div className="pill" title="Active group">
+            Group: <span className="pillValue">{groupId}</span>
+          </div>
+        </div>
+
+        <nav className="nav" aria-label="Primary">
           <button
-            className={view === "profile" ? "tab tabActive" : "tab"}
+            className={view === "profile" ? "navButton navButtonActive" : "navButton"}
             onClick={() => setView("profile")}
             type="button"
+            aria-current={view === "profile" ? "page" : undefined}
           >
             Profile
           </button>
           <button
-            className={view === "announcements" ? "tab tabActive" : "tab"}
+            className={view === "announcements" ? "navButton navButtonActive" : "navButton"}
             onClick={() => setView("announcements")}
             type="button"
+            aria-current={view === "announcements" ? "page" : undefined}
           >
             Announcements
           </button>
+          <button
+            className={view === "meetings" ? "navButton navButtonActive" : "navButton"}
+            onClick={() => setView("meetings")}
+            type="button"
+            aria-current={view === "meetings" ? "page" : undefined}
+          >
+            Meetings
+          </button>
         </nav>
-      </header>
+      </aside>
 
-      {view === "profile" ? (
-        <main className="card">
-          <h2 className="sectionTitle">Coach Profile</h2>
+      <div className="content">
+        <div className="page">
+          <header className="header">
+            <h1 className="title">Dashboard</h1>
+            <p className="subtle">Manage your profile, announcements, and meetings.</p>
+          </header>
+
+          {view === "profile" ? (
+            <main className="card">
+          <div className="row rowBetween">
+            <h2 className="sectionTitle">Profile</h2>
+            <button className="button buttonSecondary" type="button" onClick={refreshProfile}>
+              Reload
+            </button>
+          </div>
 
           {profileError ? <div className="error">{profileError}</div> : null}
           {profileLoading ? <div className="subtle">Loading profile…</div> : null}
@@ -290,16 +323,20 @@ export default function App() {
               <button className="button" type="submit" disabled={profileSaving}>
                 {profileSaving ? "Saving…" : "Save profile"}
               </button>
-              <button className="button buttonSecondary" type="button" onClick={refreshProfile}>
-                Reload
-              </button>
             </div>
           </form>
-        </main>
-      ) : (
-        <main className="stack">
+            </main>
+          ) : null}
+
+          {view === "announcements" ? (
+            <main className="stack">
           <section className="card">
-            <h2 className="sectionTitle">Announcements</h2>
+            <div className="row rowBetween">
+              <h2 className="sectionTitle">Announcements</h2>
+              <button className="button buttonSecondary" type="button" onClick={refreshAnnouncements}>
+                Refresh
+              </button>
+            </div>
 
             {announcementsError ? <div className="error">{announcementsError}</div> : null}
 
@@ -320,12 +357,7 @@ export default function App() {
               </button>
             </form>
 
-            <div className="row rowBetween">
-              <div className="subtle">Visible to group: {groupId}</div>
-              <button className="button buttonSecondary" type="button" onClick={refreshAnnouncements}>
-                Refresh
-              </button>
-            </div>
+            <div className="subtle">Visible to group: {groupId}</div>
 
             {announcementsLoading ? <div className="subtle">Loading announcements…</div> : null}
 
@@ -342,85 +374,97 @@ export default function App() {
               <div className="subtle">No announcements yet.</div>
             )}
           </section>
+            </main>
+          ) : null}
 
+          {view === "meetings" ? (
+            <main className="stack">
           <section className="card">
-            <h2 className="sectionTitle">Meeting Scheduler</h2>
-            {meetingsError ? <div className="error">{meetingsError}</div> : null}
-
-            <form className="grid" onSubmit={onScheduleMeeting}>
-              <label className="label">
-                Title
-                <input
-                  className="input"
-                  value={meetingTitle}
-                  onChange={(e) => setMeetingTitle(e.target.value)}
-                  placeholder="Weekly check-in"
-                />
-              </label>
-
-              <label className="label">
-                Date / time
-                <input
-                  className="input"
-                  type="datetime-local"
-                  value={meetingDateTimeLocal}
-                  onChange={(e) => setMeetingDateTimeLocal(e.target.value)}
-                />
-              </label>
-
-              <label className="label">
-                Google Meet link
-                <input
-                  className="input"
-                  value={meetingLink}
-                  onChange={(e) => setMeetingLink(e.target.value)}
-                  placeholder="https://meet.google.com/..."
-                />
-              </label>
-
-              <label className="label">
-                Attendees (comma-separated)
-                <textarea
-                  className="input textarea"
-                  value={meetingAttendees}
-                  onChange={(e) => setMeetingAttendees(e.target.value)}
-                  placeholder="a@example.com, b@example.com"
-                  rows={2}
-                />
-              </label>
-
-              <button className="button" type="submit" disabled={creatingMeeting}>
-                {creatingMeeting ? "Scheduling…" : "Schedule meeting"}
-              </button>
-            </form>
-
             <div className="row rowBetween">
-              <div className="subtle">Upcoming meetings</div>
+              <h2 className="sectionTitle">Meetings</h2>
               <button className="button buttonSecondary" type="button" onClick={refreshMeetings}>
                 Refresh
               </button>
             </div>
 
-            {meetingsLoading ? <div className="subtle">Loading meetings…</div> : null}
+            {meetingsError ? <div className="error">{meetingsError}</div> : null}
 
-            {meetings.length ? (
-              <ul className="list">
-                {meetings.map((m) => (
-                  <li key={m.id} className="listItem">
-                    <div className="listMain">{m.title}</div>
-                    <div className="subtle">{formatDateTime(m.startsAt || m.dateTime)}</div>
-                    <a className="link" href={m.meetLink} target="_blank" rel="noreferrer">
-                      Join link
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="subtle">No upcoming meetings yet.</div>
-            )}
+            <div className="split">
+              <form className="grid" onSubmit={onScheduleMeeting}>
+                <div className="subtle">Schedule a new meeting</div>
+                <label className="label">
+                  Title
+                  <input
+                    className="input"
+                    value={meetingTitle}
+                    onChange={(e) => setMeetingTitle(e.target.value)}
+                    placeholder="Weekly check-in"
+                  />
+                </label>
+
+                <label className="label">
+                  Date / time
+                  <input
+                    className="input"
+                    type="datetime-local"
+                    value={meetingDateTimeLocal}
+                    onChange={(e) => setMeetingDateTimeLocal(e.target.value)}
+                  />
+                </label>
+
+                <label className="label">
+                  Google Meet link
+                  <input
+                    className="input"
+                    value={meetingLink}
+                    onChange={(e) => setMeetingLink(e.target.value)}
+                    placeholder="https://meet.google.com/..."
+                  />
+                </label>
+
+                <label className="label">
+                  Attendees (comma-separated)
+                  <textarea
+                    className="input textarea"
+                    value={meetingAttendees}
+                    onChange={(e) => setMeetingAttendees(e.target.value)}
+                    placeholder="a@example.com, b@example.com"
+                    rows={2}
+                  />
+                </label>
+
+                <button className="button" type="submit" disabled={creatingMeeting}>
+                  {creatingMeeting ? "Scheduling…" : "Schedule meeting"}
+                </button>
+              </form>
+
+              <div className="grid" style={{ alignContent: "start" }}>
+                <div className="subtle">Upcoming meetings</div>
+
+                {meetingsLoading ? <div className="subtle">Loading meetings…</div> : null}
+
+                {meetings.length ? (
+                  <ul className="list">
+                    {meetings.map((m) => (
+                      <li key={m.id} className="listItem">
+                        <div className="listMain">{m.title}</div>
+                        <div className="subtle">{formatDateTime(m.startsAt || m.dateTime)}</div>
+                        <a className="link" href={m.meetLink} target="_blank" rel="noreferrer">
+                          Join link
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <div className="subtle">No upcoming meetings yet.</div>
+                )}
+              </div>
+            </div>
           </section>
-        </main>
-      )}
+            </main>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
