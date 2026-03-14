@@ -1,3 +1,10 @@
+# Notes From Carlton
+
+- I added Docker containers to make running the demo easier.
+- The firebase functions were chosen as the backend behind the express server as they're more scalable
+- Please note the github workflows. I made sure to implement unit tests and end-to-end integration tests that run on every commit.
+
+
 # demo-march
 
 A small end-to-end demo:
@@ -40,10 +47,33 @@ docker run --rm -it -p 3000:3000 -p 3005:3005 -e PY_FUNCTION_BASE_URL="http://ho
 ```
 
 ### 3) Run Seed Script
-This script creates two users in the Firebase Auth emulator and the firestore backend via the firebase cloud functions
+This script creates seed users in the Firebase Auth emulator and upserts user docs via the Cloud Functions emulator.
+
 ```bash
-python ./scripts/create_seed_users.py
+docker run --rm -it \
+	-v "$(pwd)":/workspace \
+	-w /workspace \
+	-e FIREBASE_AUTH_EMULATOR_HOST="host.docker.internal:9099" \
+	-e FUNCTIONS_BASE_URL="http://host.docker.internal:5001/coach-app-demo-3132026/us-central1" \
+	python:3.13-slim \
+	bash -lc "pip install -q -r cloud-functions/functions/requirements.txt && python scripts/create_seed_users.py"
 ```
+
+PowerShell (Windows):
+
+```powershell
+docker run --rm -it `
+	-v "${PWD}:/workspace" `
+	-w /workspace `
+	-e FIREBASE_AUTH_EMULATOR_HOST=host.docker.internal:9099 `
+	-e FUNCTIONS_BASE_URL=http://host.docker.internal:5001/coach-app-demo-3132026/us-central1 `
+	python:3.13-slim `
+	bash -lc 'pip install -q -r cloud-functions/functions/requirements.txt && python scripts/create_seed_users.py'
+```
+
+Notes:
+- `host.docker.internal` works on Docker Desktop (Windows/macOS). On Linux you may need `--add-host=host.docker.internal:host-gateway`.
+- If you set `ADMIN_API_KEY` for `createUser`, pass `-e ADMIN_API_KEY=...` to the command above.
 
 
 Open `http://localhost:3000`.
