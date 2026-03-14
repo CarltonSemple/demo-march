@@ -5,6 +5,7 @@ from app.announcements import handle_announcements
 from app.hello import handle_hello
 from app.meetings import handle_meetings
 from app.profile import handle_profile
+from app.users import handle_create_user
 
 """Firebase HTTPS Cloud Functions entrypoint.
 
@@ -53,6 +54,15 @@ Endpoints
 	- CORS: enabled
 	- GET query: `groupId` (required)
 	- POST body (JSON): `{ groupId, text }`
+
+`create_user` (HTTP)
+	- Methods: POST, OPTIONS
+	- CORS: enabled
+	- Purpose: Upsert a user document into Firestore (`users/{id}`)
+	- Body (JSON): `{ id, email, displayName?, phone? }`
+	- Security:
+		- In emulators: allowed without auth
+		- In non-emulator environments: requires `ADMIN_API_KEY` and `X-Admin-Key` header
 """
 
 set_global_options(max_instances=10)
@@ -90,3 +100,12 @@ def announcements(req: https_fn.Request) -> https_fn.Response:
 	See module docstring for request/response shape.
 	"""
 	return handle_announcements(req)
+
+
+@https_fn.on_request(cors=CorsOptions(cors_origins="*", cors_methods=["POST", "OPTIONS"]))
+def create_user(req: https_fn.Request) -> https_fn.Response:
+	"""Create/Update a user document.
+
+	See module docstring for request/response shape.
+	"""
+	return handle_create_user(req)

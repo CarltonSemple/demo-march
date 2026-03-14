@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
 import os
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 import firebase_admin
@@ -31,13 +34,62 @@ DEFAULT_CLOUD_BASE_URL = "https://us-central1-coach-app-demo-3132026.cloudfuncti
 
 
 def resolve_base_url(base_url: str | None, cloud: bool) -> str:
-    # This script talks to Firebase Auth via the Admin SDK (not Cloud Functions),
-    # but we keep base URL flags for CLI parity with other scripts.
+    # This script uses the Admin SDK for Auth, and also calls a Cloud Function to
+    # seed Firestore user documents.
     if base_url:
         return base_url
     if cloud:
         return DEFAULT_CLOUD_BASE_URL
     return os.environ.get("FUNCTIONS_BASE_URL", DEFAULT_EMULATOR_BASE_URL)
+
+
+def _resolve_admin_api_key(cli_value: str | None) -> str:
+    if cli_value and cli_value.strip():
+        return cli_value.strip()
+    return (os.environ.get("ADMIN_API_KEY") or "").strip()
+
+
+def upsert_user_document_via_function(
+    *,
+    base_url: str,
+    timeout: float,
+    admin_api_key: str,
+    user_id: str,
+    email: str,
+    display_name: str | None,
+    phone_number: str | None,
+) -> tuple[int, str]:
+    url = base_url.rstrip("/") + "/create_user"
+
+    payload = {
+        "id": user_id,
+        "email": email,
+        "displayName": display_name or "",
+        "phone": phone_number or "",
+    }
+
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=data,
+        method="POST",
+        headers={
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        },
+    )
+    if admin_api_key:
+        req.add_header("X-Admin-Key", admin_api_key)
+
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+            return int(getattr(resp, "status", 200)), body
+    except urllib.error.HTTPError as exc:
+        body = exc.read().decode("utf-8", errors="replace") if exc.fp else str(exc)
+        return int(getattr(exc, "code", 500)), body
+    except Exception as exc:
+        return 500, str(exc)
 
 
 class _EmulatorCredentials(Credentials):
@@ -172,21 +224,28 @@ def main():
         "--timeout",
         type=float,
         default=15.0,
-        help="Request timeout in seconds (accepted for CLI parity; not used by this script)",
+        help="Request timeout in seconds (used for Cloud Function calls)",
     )
     parser.add_argument(
         "--credentials-file",
         default=None,
         help="Path to Google service account JSON (sets GOOGLE_APPLICATION_CREDENTIALS)",
     )
+    parser.add_argument(
+        "--admin-api-key",
+        default=None,
+        help="Admin key for calling the create_user Cloud Function (defaults to ADMIN_API_KEY env var)",
+    )
     parser.add_argument("--project-id", default=DEFAULT_PROJECT_ID, help="Firebase project id")
     args = parser.parse_args()
 
     base_url = resolve_base_url(args.base_url, args.cloud)
+    admin_api_key = _resolve_admin_api_key(args.admin_api_key)
+
     if args.base_url is not None or "FUNCTIONS_BASE_URL" in os.environ:
-        print(f"Using base URL setting for parity: {base_url}")
+        print(f"Using Cloud Function base URL: {base_url}")
     if args.timeout != 15.0:
-        print(f"Timeout setting accepted for parity: {args.timeout}s")
+        print(f"Cloud Function request timeout: {args.timeout}s")
 
     if args.credentials_file:
         credentials_path = Path(args.credentials_file).expanduser().resolve()
@@ -200,6 +259,7 @@ def main():
 
     users = build_seed_users()
     created_count = 0
+    db_upserted_count = 0
     failed_count = 0
 
     if args.clear:
@@ -235,12 +295,31 @@ def main():
         if status_code == 200:
             print(f"Upserted user: {email} ({user_id}) [{response_text}]")
             created_count += 1
+
+            db_status, db_body = upsert_user_document_via_function(
+                base_url=base_url,
+                timeout=args.timeout,
+                admin_api_key=admin_api_key,
+                user_id=user_id,
+                email=email,
+                display_name=display_name,
+                phone_number=phone_number,
+            )
+            if 200 <= db_status < 300:
+                print(f"Upserted user doc: {email} ({user_id})")
+                db_upserted_count += 1
+            else:
+                print(f"Failed upserting user doc: {email} ({user_id})")
+                print(db_status, db_body)
         else:
             print(f"Failed creating user: {email}")
             print(status_code, response_text)
             failed_count += 1
 
-    print(f"Done. created={created_count} failed={failed_count} total={len(users)}")
+    print(
+        f"Done. auth_upserted={created_count} db_upserted={db_upserted_count} "
+        f"failed={failed_count} total={len(users)}"
+    )
 
 
 if __name__ == "__main__":
