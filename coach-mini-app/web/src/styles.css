@@ -369,10 +369,56 @@ body {
   }
 }
 
+@media (max-width: 720px) {
+  .appShell {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    flex: 0 0 auto;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 12px;
+  }
+
+  .sidebarHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .navButton {
+    text-align: center;
+    padding: 10px 8px;
+  }
+
+  .page {
+    padding: 14px 12px 22px;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  .meetLinkRow {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .meetLinkSuffixInput {
+    width: 100%;
+  }
+}
+
 @media (max-width: 520px) {
   .sidebar {
-    width: 210px;
-    flex-basis: 210px;
     padding: 12px;
   }
 }

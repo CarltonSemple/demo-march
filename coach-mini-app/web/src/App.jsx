@@ -544,15 +544,14 @@ export default function App() {
 
                 <label className="label">
                   Google Meet link
-                  <div className="row" style={{ gap: 6, flexWrap: "nowrap" }}>
+                  <div className="row meetLinkRow" style={{ gap: 6 }}>
                     <span>{MEET_LINK_PREFIX}</span>
                     <input
-                      className="input"
+                      className="input meetLinkSuffixInput"
                       value={meetingLinkSuffix}
                       onChange={(e) => setMeetingLinkSuffix(e.target.value)}
                       placeholder="abc-defg-hij"
                       aria-label="Meet link code"
-                      style={{ width: 160 }}
                     />
                   </div>
                 </label>
