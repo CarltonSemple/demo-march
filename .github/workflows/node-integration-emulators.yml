@@ -70,4 +70,4 @@ jobs:
           firebase emulators:exec \
             --project "$FIREBASE_PROJECT" \
             --only functions,firestore \
-            "cd ../coach-mini-app/server && npm test"
+            "npm --prefix ../coach-mini-app/server test"

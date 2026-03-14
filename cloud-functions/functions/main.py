@@ -1,45 +1,59 @@
-import json
-
 from firebase_functions import https_fn
-from firebase_functions.options import set_global_options
-from firebase_admin import initialize_app
+from firebase_functions.options import CorsOptions, set_global_options
 
-# For cost control, you can set the maximum number of containers that can be
-# running at the same time. This helps mitigate the impact of unexpected
-# traffic spikes by instead downgrading performance. This limit is a per-function
-# limit. You can override the limit for each function using the max_instances
-# parameter in the decorator, e.g. @https_fn.on_request(max_instances=5).
+from app.hello import handle_hello
+from app.meetings import handle_meetings
+
+"""Firebase HTTPS Cloud Functions entrypoint.
+
+This file intentionally stays thin:
+- Exported Cloud Function handlers live here (so Firebase can discover them).
+- Implementation details live in the `app/` package.
+
+Endpoints
+---------
+
+`hello` (HTTP)
+	- Method: GET
+	- Query: `name` (optional)
+	- Response: 200 JSON `{ "message": "Hello, <name|world>!" }`
+
+`meetings` (HTTP)
+	- Methods: GET, POST, OPTIONS
+	- CORS: enabled (preflight supported)
+
+	GET /meetings
+		- Query: `groupId` (required)
+		- Response: 200 JSON `{ "groupId": "...", "meetings": [...] }`
+
+	POST /meetings
+		- Body (JSON):
+				- `groupId` (required)
+				- `title` (required)
+				- `dateTime` (required; ISO-8601 string or epoch millis)
+				- `meetLink` (required; must start with `https://meet.google.com/`)
+				- `attendees` (required; non-empty list of emails)
+		- Response: 201 JSON `{ "meeting": { ... } }`
+		- Email behavior:
+				- In emulators: email is stubbed (always "sent": true)
+				- In production: requires `MAILERSEND_API_KEY` + `MAIL_FROM_EMAIL`
+					(optional: `MAIL_FROM_NAME`)
+"""
+
 set_global_options(max_instances=10)
-
-_app = None
-
-
-def _ensure_firebase_initialized() -> None:
-	global _app
-	if _app is not None:
-		return
-	try:
-		_app = initialize_app()
-	except ValueError:
-		# Already initialized (can happen in tests / reload scenarios)
-		_app = True
-
-
-def _hello_payload(name: str | None) -> dict:
-	normalized = (name or "").strip()
-	if not normalized:
-		normalized = "world"
-	return {"message": f"Hello, {normalized}!"}
-
-
 @https_fn.on_request()
 def hello(req: https_fn.Request) -> https_fn.Response:
-	_ensure_firebase_initialized()
+	"""Simple hello-world endpoint.
 
-	name = None
-	args = getattr(req, "args", None)
-	if args is not None:
-		name = args.get("name")
+	See module docstring for request/response shape.
+	"""
+	return handle_hello(req)
 
-	body = json.dumps(_hello_payload(name))
-	return https_fn.Response(body, status=200, headers={"Content-Type": "application/json"})
+
+@https_fn.on_request(cors=CorsOptions(cors_origins="*", cors_methods=["GET", "POST", "OPTIONS"]))
+def meetings(req: https_fn.Request) -> https_fn.Response:
+	"""Meeting Scheduling API.
+
+	See module docstring for request/response shape and required fields.
+	"""
+	return handle_meetings(req)
