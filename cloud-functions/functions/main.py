@@ -1,8 +1,10 @@
 from firebase_functions import https_fn
 from firebase_functions.options import CorsOptions, set_global_options
 
+from app.announcements import handle_announcements
 from app.hello import handle_hello
 from app.meetings import handle_meetings
+from app.profile import handle_profile
 
 """Firebase HTTPS Cloud Functions entrypoint.
 
@@ -38,6 +40,19 @@ Endpoints
 				- In emulators: email is stubbed (always "sent": true)
 				- In production: requires `MAILERSEND_API_KEY` + `MAIL_FROM_EMAIL`
 					(optional: `MAIL_FROM_NAME`)
+
+`profile` (HTTP)
+	- Methods: GET, PUT, OPTIONS
+	- CORS: enabled
+	- Query: `coachId` (optional, defaults to "default")
+	- GET response: 200 JSON `{ "profile": { name, email, bio, avatarDataUrl } }`
+	- PUT body (JSON): any subset of `{ name, email, bio, avatarDataUrl }`
+
+`announcements` (HTTP)
+	- Methods: GET, POST, OPTIONS
+	- CORS: enabled
+	- GET query: `groupId` (required)
+	- POST body (JSON): `{ groupId, text }`
 """
 
 set_global_options(max_instances=10)
@@ -57,3 +72,21 @@ def meetings(req: https_fn.Request) -> https_fn.Response:
 	See module docstring for request/response shape and required fields.
 	"""
 	return handle_meetings(req)
+
+
+@https_fn.on_request(cors=CorsOptions(cors_origins="*", cors_methods=["GET", "PUT", "OPTIONS"]))
+def profile(req: https_fn.Request) -> https_fn.Response:
+	"""Coach profile API.
+
+	See module docstring for request/response shape.
+	"""
+	return handle_profile(req)
+
+
+@https_fn.on_request(cors=CorsOptions(cors_origins="*", cors_methods=["GET", "POST", "OPTIONS"]))
+def announcements(req: https_fn.Request) -> https_fn.Response:
+	"""Announcements API.
+
+	See module docstring for request/response shape.
+	"""
+	return handle_announcements(req)

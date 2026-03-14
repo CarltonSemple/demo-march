@@ -24,6 +24,26 @@ body {
   padding: 12px 0 16px;
 }
 
+.tabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.tab {
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #111827;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tabActive {
+  border-color: #111827;
+}
+
 .subtle {
   color: #6b7280;
   font-size: 14px;
@@ -36,6 +56,32 @@ body {
   padding: 16px;
   display: grid;
   gap: 12px;
+}
+
+.stack {
+  display: grid;
+  gap: 12px;
+}
+
+.grid {
+  display: grid;
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.rowBetween {
+  justify-content: space-between;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 18px;
 }
 
 .label {
@@ -52,6 +98,10 @@ body {
   font-size: 14px;
 }
 
+.textarea {
+  resize: vertical;
+}
+
 .button {
   padding: 10px 12px;
   border-radius: 10px;
@@ -60,6 +110,11 @@ body {
   color: white;
   font-weight: 700;
   cursor: pointer;
+}
+
+.buttonSecondary {
+  background: white;
+  color: #111827;
 }
 
 .button:disabled {
@@ -83,4 +138,54 @@ body {
   background: #f9fafb;
   overflow: auto;
   font-size: 13px;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.listItem {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  display: grid;
+  gap: 6px;
+}
+
+.listMain {
+  font-weight: 700;
+}
+
+.link {
+  color: #111827;
+}
+
+.avatarBlock {
+  display: grid;
+  gap: 8px;
+}
+
+.avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  object-fit: cover;
+  background: #f9fafb;
+}
+
+.avatarPlaceholder {
+  width: 72px;
+  height: 72px;
+  border-radius: 999px;
+  border: 1px dashed #d1d5db;
+  display: grid;
+  place-items: center;
+  color: #6b7280;
+  font-size: 12px;
+  background: #f9fafb;
 }
