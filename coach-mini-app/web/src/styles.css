@@ -136,6 +136,11 @@ body {
   font-weight: 700;
 }
 
+.sidebarSelect option {
+  background: var(--surface);
+  color: var(--text);
+}
+
 .sidebarSelect:focus {
   outline: none;
 }

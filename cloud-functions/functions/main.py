@@ -45,7 +45,7 @@ Endpoints
 `profile` (HTTP)
 	- Methods: GET, PUT, OPTIONS
 	- CORS: enabled
-	- Query: `coachId` (optional, defaults to "default")
+	- Query: `userId` (optional, defaults to "default")
 	- GET response: 200 JSON `{ "profile": { name, email, bio, avatarDataUrl } }`
 	- PUT body (JSON): any subset of `{ name, email, bio, avatarDataUrl }`
 

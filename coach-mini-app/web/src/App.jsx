@@ -43,6 +43,13 @@ export default function App() {
     }
   });
 
+  const activeUser = useMemo(() => {
+    if (!activeUserId) return null;
+    return users.find((u) => u?.id === activeUserId) || null;
+  }, [users, activeUserId]);
+
+  const activeProfileUserId = activeUserId || "default";
+
   // Coach Profile
   const [profileLoading, setProfileLoading] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
@@ -83,10 +90,10 @@ export default function App() {
     setProfileLoading(true);
     setProfileError(null);
     try {
-      const p = await getProfile();
+      const p = await getProfile({ userId: activeProfileUserId });
       setProfile({
-        name: p?.name || "",
-        email: p?.email || "",
+        name: p?.name || activeUser?.displayName || "",
+        email: p?.email || activeUser?.email || "",
         bio: p?.bio || "",
         avatarDataUrl: p?.avatarDataUrl || "",
       });
@@ -125,7 +132,7 @@ export default function App() {
 
   useEffect(() => {
     refreshProfile();
-  }, []);
+  }, [activeProfileUserId, activeUser?.displayName, activeUser?.email]);
 
   useEffect(() => {
     let cancelled = false;
@@ -180,7 +187,7 @@ export default function App() {
         email: profile.email,
         bio: profile.bio,
         avatarDataUrl: profile.avatarDataUrl || "",
-      });
+      }, { userId: activeProfileUserId });
       setProfile({
         name: saved?.name || "",
         email: saved?.email || "",

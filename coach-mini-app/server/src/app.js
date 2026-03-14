@@ -165,8 +165,10 @@ export function createApp() {
       const pythonBaseUrl = getPythonFunctionBaseUrl();
       const url = new URL(pythonBaseUrl.replace(/\/+$/, "") + "/profile");
 
+      const userId = typeof req.query.userId === "string" ? req.query.userId.trim() : "";
       const coachId = typeof req.query.coachId === "string" ? req.query.coachId.trim() : "";
-      if (coachId) url.searchParams.set("coachId", coachId);
+      const effectiveId = userId || coachId;
+      if (effectiveId) url.searchParams.set("userId", effectiveId);
 
       const resp = await fetch(url, { headers: { Accept: "application/json" } });
       const rawBody = await resp.text();
@@ -198,8 +200,10 @@ export function createApp() {
       const pythonBaseUrl = getPythonFunctionBaseUrl();
       const url = new URL(pythonBaseUrl.replace(/\/+$/, "") + "/profile");
 
+      const userId = typeof req.query.userId === "string" ? req.query.userId.trim() : "";
       const coachId = typeof req.query.coachId === "string" ? req.query.coachId.trim() : "";
-      if (coachId) url.searchParams.set("coachId", coachId);
+      const effectiveId = userId || coachId;
+      if (effectiveId) url.searchParams.set("userId", effectiveId);
 
       const resp = await fetch(url, {
         method: "PUT",

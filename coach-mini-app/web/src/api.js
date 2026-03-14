@@ -48,9 +48,9 @@ function apiError(resp, payload) {
 
 export async function getProfile(options = {}) {
   const url = new URL(apiUrlWithOptions("/api/profile", options));
-  const coachId = options?.coachId || options?.coach_id;
-  if (typeof coachId === "string" && coachId.trim()) {
-    url.searchParams.set("coachId", coachId.trim());
+  const userId = options?.userId || options?.user_id || options?.coachId || options?.coach_id;
+  if (typeof userId === "string" && userId.trim()) {
+    url.searchParams.set("userId", userId.trim());
   }
 
   const resp = await fetch(url, { headers: { Accept: "application/json" } });
@@ -61,9 +61,9 @@ export async function getProfile(options = {}) {
 
 export async function updateProfile(profilePatch, options = {}) {
   const url = new URL(apiUrlWithOptions("/api/profile", options));
-  const coachId = options?.coachId || options?.coach_id;
-  if (typeof coachId === "string" && coachId.trim()) {
-    url.searchParams.set("coachId", coachId.trim());
+  const userId = options?.userId || options?.user_id || options?.coachId || options?.coach_id;
+  if (typeof userId === "string" && userId.trim()) {
+    url.searchParams.set("userId", userId.trim());
   }
 
   const resp = await fetch(url, {

@@ -69,7 +69,7 @@ Vite proxies `/api/*` to Express (`http://127.0.0.1:3005`).
 These are called by the React UI via Express `/api/*` proxies.
 
 - Profile
-	- `GET /api/profile?coachId=...` (optional `coachId`, defaults to `default`)
+	- `GET /api/profile?userId=...` (optional `userId`, defaults to `default`; `coachId` is accepted as an alias)
 	- `PUT /api/profile` body can include any subset of `{ name, email, bio, avatarDataUrl }`
 
 - Announcements

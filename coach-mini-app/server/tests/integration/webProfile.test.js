@@ -15,8 +15,8 @@ function getPythonBaseUrl() {
   return `http://127.0.0.1:5001/${projectId}/${region}`;
 }
 
-function uniqueCoachId() {
-  return `itest-coach-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+function uniqueUserId() {
+  return `itest-user-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
 test("Web API save profile reaches Express → Cloud Function", async (t) => {
@@ -32,7 +32,7 @@ test("Web API save profile reaches Express → Cloud Function", async (t) => {
   assert.ok(address && typeof address === "object");
   const apiOrigin = `http://127.0.0.1:${address.port}`;
 
-  const coachId = uniqueCoachId();
+  const userId = uniqueUserId();
   const patch = {
     name: `Integration Coach ${Date.now()}`,
     email: `integration.${Date.now()}@example.com`,
@@ -41,7 +41,7 @@ test("Web API save profile reaches Express → Cloud Function", async (t) => {
 
   let saved;
   try {
-    saved = await updateProfile(patch, { apiOrigin, coachId });
+    saved = await updateProfile(patch, { apiOrigin, userId });
   } catch (err) {
     const message = `updateProfile failed: ${err instanceof Error ? err.message : String(err)}`;
     if (process.env.CI === "true") assert.fail(message);
@@ -49,14 +49,14 @@ test("Web API save profile reaches Express → Cloud Function", async (t) => {
     return;
   }
 
-  assert.equal(saved.coachId, coachId);
+  assert.equal(saved.userId, userId);
   assert.equal(saved.name, patch.name);
   assert.equal(saved.email, patch.email.toLowerCase());
   assert.equal(saved.bio, patch.bio);
 
   let loaded;
   try {
-    loaded = await getProfile({ apiOrigin, coachId });
+    loaded = await getProfile({ apiOrigin, userId });
   } catch (err) {
     const message = `getProfile failed: ${err instanceof Error ? err.message : String(err)}`;
     if (process.env.CI === "true") assert.fail(message);
@@ -64,7 +64,7 @@ test("Web API save profile reaches Express → Cloud Function", async (t) => {
     return;
   }
 
-  assert.equal(loaded.coachId, coachId);
+  assert.equal(loaded.userId, userId);
   assert.equal(loaded.name, patch.name);
   assert.equal(loaded.email, patch.email.toLowerCase());
   assert.equal(loaded.bio, patch.bio);
