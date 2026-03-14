@@ -5,7 +5,7 @@ A small end-to-end demo:
 - Express proxy API
 - React (Vite) web UI
 
-## Prerequisites
+## Prerequisites (if not using Docker to run everything)
 
 - Node.js 20+ and npm
 - Python 3.13 (Functions runtime is `python313`)
@@ -14,13 +14,12 @@ A small end-to-end demo:
 
 ## Run locally (end-to-end)
 
-You’ll typically run 3 terminals.
+Open three terminals.
 
 ### 1) Start Firebase emulators
-
+In the first terminal, run
 ```bash
-cd cloud-functions
-docker build -t emulators -f ./Dockerfile.emulators .
+docker build -t emulators -f ./cloud-functions/Dockerfile.emulators ./cloud-functions
 docker run --rm -it -e MAILERSEND_API_KEY="<insert_mailersend_api_key_here>" -e MAIL_FROM_EMAIL="meetings@test-p7kx4xwrpevg9yjr.mlsender.net" -e SEND_FROM_EMULATOR="true" -p 5001:5001 -p 8081:8081 -p 9099:9099 -p 4001:4001 emulators
 ```
 
@@ -31,38 +30,25 @@ Useful URLs/ports:
 - Emulator UI: `http://127.0.0.1:4001/`
 
 
-### 2) Start Express server
+### 2) Run Express + React in Docker
 
-From `coach-mini-app/server`:
-
+This runs the Express proxy (port 3005) and the React/Vite dev server (port 3000) in one container.
+In the second terminal, run
 ```bash
-npm install
-npm run dev
+docker build -t coach-mini-app -f coach-mini-app/Dockerfile.dev .
+docker run --rm -it -p 3000:3000 -p 3005:3005 -e PY_FUNCTION_BASE_URL="http://host.docker.internal:5001/coach-app-demo-3132026/us-central1" coach-mini-app
 ```
 
-Optional override if you’re using a different project/region:
-
+### 3) Run Seed Script
+This script creates two users in the Firebase Auth emulator and the firestore backend via the firebase cloud functions
 ```bash
-export PY_FUNCTION_BASE_URL="http://127.0.0.1:5001/coach-app-demo-3132026/us-central1"
+python ./scripts/create_seed_users.py
 ```
 
-If `PY_FUNCTION_BASE_URL` is unset, the server defaults to
-`http://127.0.0.1:5001/<project>/<region>` using `FIREBASE_PROJECT`/`GCLOUD_PROJECT` and `FUNCTION_REGION`.
 
-Express listens on `http://127.0.0.1:3005`.
+Open `http://localhost:3000`.
 
-### 3) Start React web
-
-From `coach-mini-app/web`:
-
-```bash
-npm install
-npm run dev
-```
-
-Open `http://127.0.0.1:3000`.
-
-Vite proxies `/api/*` to Express (`http://127.0.0.1:3005`).
+Vite proxies `/api/*` to Express (`http://localhost:3005`).
 
 ## API overview
 
@@ -85,19 +71,17 @@ These are called by the React UI via Express `/api/*` proxies.
 Notes:
 - The demo web UI uses a simple default `groupId` of `demo-group`.
 
-## Email (production)
-
-In order to send an email via MailerSend, the following is needed.
-
-Environment variables:
-- `MAILERSEND_API_KEY` (required)
-- `MAIL_FROM_EMAIL` (required)
-- `MAIL_FROM_NAME` (optional)
-- `SEND_FROM_EMULATOR` (required)
-
 ## Tests
 
-### Python tests
+### Node (Express) integration tests
+
+From `coach-mini-app/server` (assumes emulators are running):
+
+```bash
+npm test
+```
+
+### Cloud Function (Python) tests
 
 First-time setup (create a venv under `cloud-functions/functions/`):
 
@@ -120,14 +104,6 @@ Integration-only (assumes emulators are already running):
 cd cloud-functions/functions
 ./venv/bin/python -m pip install -q -r requirements-dev.txt
 ./venv/bin/python -m pytest -q -m integration -rs
-```
-
-### Node (Express) integration tests
-
-From `coach-mini-app/server` (assumes emulators are running):
-
-```bash
-npm test
 ```
 
 ### Run everything
