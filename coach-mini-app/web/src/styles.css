@@ -36,8 +36,8 @@ body {
   background: #56365b;
   border-right: 1px solid rgba(255, 255, 255, 0.12);
   padding: 16px;
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
   gap: 14px;
 }
 
@@ -110,6 +110,46 @@ body {
   gap: 6px;
 }
 
+.sidebarFooter {
+  margin-top: auto;
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.sidebarFooterTitle {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.sidebarSelect {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.95);
+  font-weight: 700;
+}
+
+.sidebarSelect option {
+  background: var(--surface);
+  color: var(--text);
+}
+
+.sidebarSelect:focus {
+  outline: none;
+}
+
+.sidebarSelect:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.92);
+  outline-offset: 2px;
+}
+
 .navButton {
   width: 100%;
   text-align: left;
@@ -140,12 +180,20 @@ body {
 }
 
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: #dfd0d0;
+  border: 1px solid var(--danger-text);
   border-radius: 12px;
   padding: 16px;
   display: grid;
   gap: 12px;
+}
+
+.cardProfile {
+  border: none;
+}
+
+.cardNoBorder {
+  border: none;
 }
 
 .stack {
@@ -266,6 +314,14 @@ body {
   gap: 6px;
 }
 
+.listAnnouncements .listItem {
+  background: var(--surface);
+}
+
+.listMeetings .listItem {
+  background: var(--surface);
+}
+
 .listMain {
   font-weight: 700;
 }
@@ -313,10 +369,56 @@ body {
   }
 }
 
+@media (max-width: 720px) {
+  .appShell {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    flex: 0 0 auto;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 12px;
+  }
+
+  .sidebarHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .nav {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .navButton {
+    text-align: center;
+    padding: 10px 8px;
+  }
+
+  .page {
+    padding: 14px 12px 22px;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  .meetLinkRow {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .meetLinkSuffixInput {
+    width: 100%;
+  }
+}
+
 @media (max-width: 520px) {
   .sidebar {
-    width: 210px;
-    flex-basis: 210px;
     padding: 12px;
   }
 }

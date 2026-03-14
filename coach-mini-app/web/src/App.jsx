@@ -1,15 +1,17 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   createMeeting,
   getProfile,
   listAnnouncements,
   listMeetings,
+  listUsers,
   postAnnouncement,
   updateProfile,
 } from "./api";
 
 const DEFAULT_GROUP_ID = "demo-group";
+const MEET_LINK_PREFIX = "https://meet.google.com/";
 
 function formatDateTime(iso) {
   if (!iso) return "";
@@ -29,6 +31,27 @@ function readFileAsDataUrl(file) {
 
 export default function App() {
   const [view, setView] = useState("profile");
+
+  // User selector
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [activeUserId, setActiveUserId] = useState(() => {
+    try {
+      return window.localStorage.getItem("activeUserId") || "";
+    } catch {
+      return "";
+    }
+  });
+
+  const activeUser = useMemo(() => {
+    if (!activeUserId) return null;
+    return users.find((u) => u?.id === activeUserId) || null;
+  }, [users, activeUserId]);
+
+  const canPostAnnouncements = (activeUser?.role || "").toLowerCase() === "coach";
+
+  const activeProfileUserId = activeUserId || "default";
 
   // Coach Profile
   const [profileLoading, setProfileLoading] = useState(false);
@@ -55,9 +78,12 @@ export default function App() {
   const [meetings, setMeetings] = useState([]);
   const [meetingTitle, setMeetingTitle] = useState("");
   const [meetingDateTimeLocal, setMeetingDateTimeLocal] = useState("");
-  const [meetingLink, setMeetingLink] = useState("https://meet.google.com/");
+  const [meetingLinkSuffix, setMeetingLinkSuffix] = useState("");
   const [meetingAttendees, setMeetingAttendees] = useState("");
   const [creatingMeeting, setCreatingMeeting] = useState(false);
+
+  const scheduleMeetingInFlightRef = useRef(false);
+  const scheduleMeetingIdempotencyKeyRef = useRef("");
 
   const meetingAttendeesList = useMemo(() => {
     return meetingAttendees
@@ -70,10 +96,10 @@ export default function App() {
     setProfileLoading(true);
     setProfileError(null);
     try {
-      const p = await getProfile();
+      const p = await getProfile({ userId: activeProfileUserId });
       setProfile({
-        name: p?.name || "",
-        email: p?.email || "",
+        name: p?.name || activeUser?.displayName || "",
+        email: p?.email || activeUser?.email || "",
         bio: p?.bio || "",
         avatarDataUrl: p?.avatarDataUrl || "",
       });
@@ -112,6 +138,40 @@ export default function App() {
 
   useEffect(() => {
     refreshProfile();
+  }, [activeProfileUserId, activeUser?.displayName, activeUser?.email]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setUsersLoading(true);
+      setUsersError(null);
+      try {
+        const items = await listUsers();
+        if (cancelled) return;
+        setUsers(items);
+
+        setActiveUserId((prev) => {
+          const existing = (prev || "").trim();
+          const existingStillThere = Array.isArray(items) && existing ? items.some((u) => u?.id === existing) : false;
+          const next = existingStillThere ? existing : (items?.[0]?.id || "");
+          try {
+            if (next) window.localStorage.setItem("activeUserId", next);
+          } catch {
+            // ignore
+          }
+          return next;
+        });
+      } catch (e) {
+        if (cancelled) return;
+        setUsersError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (!cancelled) setUsersLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -133,7 +193,7 @@ export default function App() {
         email: profile.email,
         bio: profile.bio,
         avatarDataUrl: profile.avatarDataUrl || "",
-      });
+      }, { userId: activeProfileUserId });
       setProfile({
         name: saved?.name || "",
         email: saved?.email || "",
@@ -174,25 +234,46 @@ export default function App() {
   async function onScheduleMeeting(e) {
     e.preventDefault();
 
+    if (scheduleMeetingInFlightRef.current) return;
+    scheduleMeetingInFlightRef.current = true;
+
     setCreatingMeeting(true);
     setMeetingsError(null);
     try {
       const startsAtIso = meetingDateTimeLocal ? new Date(meetingDateTimeLocal).toISOString() : "";
+
+      if (!scheduleMeetingIdempotencyKeyRef.current) {
+        const uuid = (typeof crypto !== "undefined" && crypto && typeof crypto.randomUUID === "function")
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        scheduleMeetingIdempotencyKeyRef.current = `schedule-${uuid}`;
+      }
+
+      let suffix = meetingLinkSuffix.trim();
+      if (suffix.toLowerCase().startsWith(MEET_LINK_PREFIX)) {
+        suffix = suffix.slice(MEET_LINK_PREFIX.length);
+      }
+      suffix = suffix.replace(/^\/+/, "");
+
       await createMeeting({
         groupId,
         title: meetingTitle,
         dateTime: startsAtIso,
-        meetLink: meetingLink,
+        meetLink: `${MEET_LINK_PREFIX}${suffix}`,
         attendees: meetingAttendeesList,
+        idempotencyKey: scheduleMeetingIdempotencyKeyRef.current,
       });
       setMeetingTitle("");
       setMeetingDateTimeLocal("");
+      setMeetingLinkSuffix("");
       setMeetingAttendees("");
+      scheduleMeetingIdempotencyKeyRef.current = "";
       await refreshMeetings();
     } catch (e2) {
       setMeetingsError(e2 instanceof Error ? e2.message : String(e2));
     } finally {
       setCreatingMeeting(false);
+      scheduleMeetingInFlightRef.current = false;
     }
   }
 
@@ -236,17 +317,50 @@ export default function App() {
             Meetings
           </button>
         </nav>
+
+        <div className="sidebarFooter" aria-label="User selector">
+          <div className="sidebarFooterTitle">User</div>
+
+          {usersLoading ? <div className="subtle">Loading…</div> : null}
+          {usersError ? (
+            <div className="subtle" title={usersError}>
+              Users unavailable
+            </div>
+          ) : null}
+
+          {!usersLoading && !usersError ? (
+            <select
+              className="sidebarSelect"
+              value={activeUserId || ""}
+              onChange={(e) => {
+                const next = e.target.value;
+                setActiveUserId(next);
+                try {
+                  window.localStorage.setItem("activeUserId", next);
+                } catch {
+                  // ignore
+                }
+              }}
+            >
+              {users.length === 0 ? <option value="">No users found</option> : null}
+              {users.map((u) => {
+                const label = (u?.displayName || "").trim() || (u?.email || "").trim() || u?.id;
+                const role = (u?.role || "").trim();
+                return (
+                  <option key={u.id} value={u.id}>
+                    {label}{role ? ` (${role})` : ""}
+                  </option>
+                );
+              })}
+            </select>
+          ) : null}
+        </div>
       </aside>
 
       <div className="content">
         <div className="page">
-          <header className="header">
-            <h1 className="title">Dashboard</h1>
-            <p className="subtle">Manage your profile, announcements, and meetings.</p>
-          </header>
-
           {view === "profile" ? (
-            <main className="card">
+            <main className="card cardProfile">
           <div className="row rowBetween">
             <h2 className="sectionTitle">Profile</h2>
             <button className="button buttonSecondary" type="button" onClick={refreshProfile}>
@@ -330,7 +444,7 @@ export default function App() {
 
           {view === "announcements" ? (
             <main className="stack">
-          <section className="card">
+          <section className="card cardNoBorder">
             <div className="row rowBetween">
               <h2 className="sectionTitle">Announcements</h2>
               <button className="button buttonSecondary" type="button" onClick={refreshAnnouncements}>
@@ -340,29 +454,31 @@ export default function App() {
 
             {announcementsError ? <div className="error">{announcementsError}</div> : null}
 
-            <form className="grid" onSubmit={onPostAnnouncement}>
-              <label className="label">
-                Post an announcement
-                <textarea
-                  className="input textarea"
-                  value={announcementText}
-                  onChange={(e) => setAnnouncementText(e.target.value)}
-                  placeholder="Type an announcement for your group…"
-                  rows={3}
-                />
-              </label>
+            {canPostAnnouncements ? (
+              <form className="grid" onSubmit={onPostAnnouncement}>
+                <label className="label">
+                  Post an announcement
+                  <textarea
+                    className="input textarea"
+                    value={announcementText}
+                    onChange={(e) => setAnnouncementText(e.target.value)}
+                    placeholder="Type an announcement for your group…"
+                    rows={3}
+                  />
+                </label>
 
-              <button className="button" type="submit" disabled={postingAnnouncement}>
-                {postingAnnouncement ? "Posting…" : "Post"}
-              </button>
-            </form>
+                <button className="button" type="submit" disabled={postingAnnouncement}>
+                  {postingAnnouncement ? "Posting…" : "Post"}
+                </button>
+              </form>
+            ) : null}
 
-            <div className="subtle">Visible to group: {groupId}</div>
+            <div className="subtle">{canPostAnnouncements ? `Visible to group: ${groupId}` : groupId}</div>
 
             {announcementsLoading ? <div className="subtle">Loading announcements…</div> : null}
 
             {announcements.length ? (
-              <ul className="list">
+              <ul className="list listAnnouncements">
                 {announcements.map((a) => (
                   <li key={a.id} className="listItem">
                     <div className="listMain">{a.text}</div>
@@ -379,7 +495,7 @@ export default function App() {
 
           {view === "meetings" ? (
             <main className="stack">
-          <section className="card">
+          <section className="card cardNoBorder">
             <div className="row rowBetween">
               <h2 className="sectionTitle">Meetings</h2>
               <button className="button buttonSecondary" type="button" onClick={refreshMeetings}>
@@ -409,17 +525,35 @@ export default function App() {
                     type="datetime-local"
                     value={meetingDateTimeLocal}
                     onChange={(e) => setMeetingDateTimeLocal(e.target.value)}
+                    onMouseDown={(e) => {
+                      try {
+                        e.currentTarget.showPicker?.();
+                      } catch {
+                        // ignore (not supported)
+                      }
+                    }}
+                    onTouchStart={(e) => {
+                      try {
+                        e.currentTarget.showPicker?.();
+                      } catch {
+                        // ignore (not supported)
+                      }
+                    }}
                   />
                 </label>
 
                 <label className="label">
                   Google Meet link
-                  <input
-                    className="input"
-                    value={meetingLink}
-                    onChange={(e) => setMeetingLink(e.target.value)}
-                    placeholder="https://meet.google.com/..."
-                  />
+                  <div className="row meetLinkRow" style={{ gap: 6 }}>
+                    <span>{MEET_LINK_PREFIX}</span>
+                    <input
+                      className="input meetLinkSuffixInput"
+                      value={meetingLinkSuffix}
+                      onChange={(e) => setMeetingLinkSuffix(e.target.value)}
+                      placeholder="abc-defg-hij"
+                      aria-label="Meet link code"
+                    />
+                  </div>
                 </label>
 
                 <label className="label">
@@ -444,11 +578,14 @@ export default function App() {
                 {meetingsLoading ? <div className="subtle">Loading meetings…</div> : null}
 
                 {meetings.length ? (
-                  <ul className="list">
+                  <ul className="list listMeetings">
                     {meetings.map((m) => (
                       <li key={m.id} className="listItem">
                         <div className="listMain">{m.title}</div>
                         <div className="subtle">{formatDateTime(m.startsAt || m.dateTime)}</div>
+                        <div className="subtle">
+                          Attendees: {Array.isArray(m.attendees) && m.attendees.length ? m.attendees.join(", ") : "—"}
+                        </div>
                         <a className="link" href={m.meetLink} target="_blank" rel="noreferrer">
                           Join link
                         </a>

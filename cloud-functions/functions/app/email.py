@@ -15,7 +15,7 @@ def send_meeting_email(*, to_emails: list[str], title: str, starts_at: datetime,
     - In production: requires MAILERSEND_API_KEY and MAIL_FROM_EMAIL
     """
 
-    if is_emulator_environment():
+    if is_emulator_environment() and not os.environ.get("SEND_FROM_EMULATOR"):
         return {
             "provider": "stub",
             "sent": True,
@@ -27,7 +27,7 @@ def send_meeting_email(*, to_emails: list[str], title: str, starts_at: datetime,
         raise RuntimeError("MAILERSEND_API_KEY is required in production")
 
     from_email = (os.environ.get("MAIL_FROM_EMAIL") or "").strip()
-    from_name = (os.environ.get("MAIL_FROM_NAME") or "Humm Coach App").strip()
+    from_name = (os.environ.get("MAIL_FROM_NAME") or "Coach App").strip()
     if not from_email:
         raise RuntimeError("MAIL_FROM_EMAIL is required in production")
 

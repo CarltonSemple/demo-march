@@ -20,7 +20,7 @@ You’ll typically run 3 terminals.
 
 From `cloud-functions/`:
 
-```powershell
+```bash
 firebase emulators:start --only functions,firestore,ui
 ```
 
@@ -35,15 +35,15 @@ If `firebase emulators:start` fails, ensure Java is installed and try `firebase 
 
 From `coach-mini-app/server`:
 
-```powershell
+```bash
 npm install
 npm run dev
 ```
 
 Optional override if you’re using a different project/region:
 
-```powershell
-$env:PY_FUNCTION_BASE_URL = "http://127.0.0.1:5001/coach-app-demo-3132026/us-central1"
+```bash
+export PY_FUNCTION_BASE_URL="http://127.0.0.1:5001/coach-app-demo-3132026/us-central1"
 ```
 
 If `PY_FUNCTION_BASE_URL` is unset, the server defaults to
@@ -55,7 +55,7 @@ Express listens on `http://127.0.0.1:3005`.
 
 From `coach-mini-app/web`:
 
-```powershell
+```bash
 npm install
 npm run dev
 ```
@@ -69,7 +69,7 @@ Vite proxies `/api/*` to Express (`http://127.0.0.1:3005`).
 These are called by the React UI via Express `/api/*` proxies.
 
 - Profile
-	- `GET /api/profile?coachId=...` (optional `coachId`, defaults to `default`)
+	- `GET /api/profile?userId=...` (optional `userId`, defaults to `default`; `coachId` is accepted as an alias)
 	- `PUT /api/profile` body can include any subset of `{ name, email, bio, avatarDataUrl }`
 
 - Announcements
@@ -94,6 +94,7 @@ Environment variables:
 - `MAILERSEND_API_KEY` (required)
 - `MAIL_FROM_EMAIL` (required)
 - `MAIL_FROM_NAME` (optional)
+- `SEND_FROM_EMULATOR` (required)
 
 ## Tests
 
@@ -101,35 +102,48 @@ Environment variables:
 
 First-time setup (create a venv under `cloud-functions/functions/`):
 
-```powershell
-cd cloud-functions\functions
-py -3.13 -m venv venv
+```bash
+cd cloud-functions/functions
+python3.13 -m venv venv
 ```
 
 Run tests (from repo root):
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\run-python-tests.ps1
+```bash
+cd cloud-functions/functions
+./venv/bin/python -m pip install -q -r requirements-dev.txt
+./venv/bin/python -m pytest -q
 ```
 
 Integration-only (assumes emulators are already running):
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\run-python-tests.ps1 -IntegrationOnly
+```bash
+cd cloud-functions/functions
+./venv/bin/python -m pip install -q -r requirements-dev.txt
+./venv/bin/python -m pytest -q -m integration -rs
 ```
 
 ### Node (Express) integration tests
 
 From `coach-mini-app/server` (assumes emulators are running):
 
-```powershell
+```bash
 npm test
 ```
 
 ### Run everything
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File .\run-all-tests.ps1
+```bash
+# Python tests
+cd cloud-functions/functions
+./venv/bin/python -m pip install -q -r requirements-dev.txt
+./venv/bin/python -m pytest -q
+
+# Node (Express) integration tests
+cd coach-mini-app/server
+export PY_FUNCTION_BASE_URL="http://127.0.0.1:5001/coach-app-demo-3132026/us-central1"
+npm install
+npm test
 ```
 
 ## CI

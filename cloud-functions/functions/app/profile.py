@@ -66,21 +66,27 @@ def handle_profile(req: https_fn.Request) -> https_fn.Response:
     ensure_firebase_initialized()
     db = get_db()
 
-    coach_id = "default"
+    user_id = "default"
     args = getattr(req, "args", None)
     if args is not None:
-        maybe = args.get("coachId") or args.get("coach_id")
+        maybe = args.get("userId") or args.get("user_id") or args.get("coachId") or args.get("coach_id")
         if isinstance(maybe, str) and maybe.strip():
-            coach_id = maybe.strip()
+            user_id = maybe.strip()
 
-    doc_ref = db.collection("coaches").document(coach_id)
+    # Store profiles keyed by userId so members and coaches both work.
+    profiles_ref = db.collection("profiles").document(user_id)
+    legacy_ref = db.collection("coaches").document(user_id)
 
     if req.method == "GET":
-        snap = doc_ref.get()
-        data = snap.to_dict() if getattr(snap, "exists", False) else {}
+        snap = profiles_ref.get()
+        if getattr(snap, "exists", False):
+            data = snap.to_dict() or {}
+        else:
+            legacy = legacy_ref.get()
+            data = legacy.to_dict() if getattr(legacy, "exists", False) else {}
 
         profile = {
-            "coachId": coach_id,
+            "userId": user_id,
             "name": data.get("name") or "",
             "email": data.get("email") or "",
             "bio": data.get("bio") or "",
@@ -102,10 +108,27 @@ def handle_profile(req: https_fn.Request) -> https_fn.Response:
             )
 
         assert cleaned is not None
-        cleaned["updatedAt"] = datetime.now(tz=UTC)
+        now = datetime.now(tz=UTC)
+        cleaned["updatedAt"] = now
 
-        doc_ref.set(cleaned, merge=True)
-        return json_response({"profile": {"coachId": coach_id, **cleaned}}, status=200, headers=cors_headers())
+        profiles_ref.set(cleaned, merge=True)
+
+        # Keep user record in sync for duplicated fields.
+        # The UI selects users from the users collection, so this doc should exist in normal flows.
+        user_patch: dict[str, str | datetime] = {}
+        if "email" in cleaned:
+            user_patch["email"] = str(cleaned["email"]).strip().lower()
+        if "name" in cleaned:
+            user_patch["displayName"] = str(cleaned["name"]).strip()
+
+        if user_patch:
+            users_ref = db.collection("users").document(user_id)
+            snap = users_ref.get()
+            if getattr(snap, "exists", False):
+                user_patch["updatedAt"] = now
+                users_ref.set(user_patch, merge=True)
+
+        return json_response({"profile": {"userId": user_id, **cleaned}}, status=200, headers=cors_headers())
 
     return error_response(
         status=405,
