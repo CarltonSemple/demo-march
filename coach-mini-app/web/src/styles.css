@@ -180,12 +180,20 @@ body {
 }
 
 .card {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: #dfd0d0;
+  border: 1px solid var(--danger-text);
   border-radius: 12px;
   padding: 16px;
   display: grid;
   gap: 12px;
+}
+
+.cardProfile {
+  border: none;
+}
+
+.cardNoBorder {
+  border: none;
 }
 
 .stack {
@@ -304,6 +312,14 @@ body {
   padding: 12px;
   display: grid;
   gap: 6px;
+}
+
+.listAnnouncements .listItem {
+  background: var(--surface);
+}
+
+.listMeetings .listItem {
+  background: var(--surface);
 }
 
 .listMain {

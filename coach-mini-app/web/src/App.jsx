@@ -344,7 +344,7 @@ export default function App() {
       <div className="content">
         <div className="page">
           {view === "profile" ? (
-            <main className="card">
+            <main className="card cardProfile">
           <div className="row rowBetween">
             <h2 className="sectionTitle">Profile</h2>
             <button className="button buttonSecondary" type="button" onClick={refreshProfile}>
@@ -428,7 +428,7 @@ export default function App() {
 
           {view === "announcements" ? (
             <main className="stack">
-          <section className="card">
+          <section className="card cardNoBorder">
             <div className="row rowBetween">
               <h2 className="sectionTitle">Announcements</h2>
               <button className="button buttonSecondary" type="button" onClick={refreshAnnouncements}>
@@ -462,7 +462,7 @@ export default function App() {
             {announcementsLoading ? <div className="subtle">Loading announcements…</div> : null}
 
             {announcements.length ? (
-              <ul className="list">
+              <ul className="list listAnnouncements">
                 {announcements.map((a) => (
                   <li key={a.id} className="listItem">
                     <div className="listMain">{a.text}</div>
@@ -479,7 +479,7 @@ export default function App() {
 
           {view === "meetings" ? (
             <main className="stack">
-          <section className="card">
+          <section className="card cardNoBorder">
             <div className="row rowBetween">
               <h2 className="sectionTitle">Meetings</h2>
               <button className="button buttonSecondary" type="button" onClick={refreshMeetings}>
@@ -563,7 +563,7 @@ export default function App() {
                 {meetingsLoading ? <div className="subtle">Loading meetings…</div> : null}
 
                 {meetings.length ? (
-                  <ul className="list">
+                  <ul className="list listMeetings">
                     {meetings.map((m) => (
                       <li key={m.id} className="listItem">
                         <div className="listMain">{m.title}</div>
