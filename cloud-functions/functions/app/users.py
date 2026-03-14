@@ -27,7 +27,7 @@ def _is_authorized(req: https_fn.Request) -> tuple[bool, https_fn.Response | Non
         return False, error_response(
             status=500,
             code="admin_key_not_configured",
-            message="ADMIN_API_KEY must be set for createUser in non-emulator environments",
+            message="ADMIN_API_KEY must be set for admin endpoints in non-emulator environments",
             headers=cors_headers(),
         )
 
@@ -152,6 +152,29 @@ def _handle_post(*, req: https_fn.Request, db) -> https_fn.Response:
     )
 
 
+def _handle_get(*, req: https_fn.Request, db) -> https_fn.Response:
+    ok, resp = _is_authorized(req)
+    if not ok:
+        assert resp is not None
+        return resp
+
+    users: list[dict[str, str]] = []
+    for doc in db.collection("users").stream():
+        data = doc.to_dict() or {}
+        users.append(
+            {
+                "id": getattr(doc, "id", ""),
+                "email": str(data.get("email") or ""),
+                "role": str(data.get("role") or ""),
+                "displayName": str(data.get("displayName") or ""),
+                "phone": str(data.get("phone") or ""),
+            }
+        )
+
+    users.sort(key=lambda u: (u.get("email") or u.get("id") or "").lower())
+    return json_response({"users": users}, status=200, headers=cors_headers())
+
+
 def handle_create_user(req: https_fn.Request) -> https_fn.Response:
     if req.method == "OPTIONS":
         return cors_preflight_response(origin="*", methods="POST,OPTIONS", headers="Content-Type, X-Admin-Key")
@@ -167,3 +190,20 @@ def handle_create_user(req: https_fn.Request) -> https_fn.Response:
     ensure_firebase_initialized()
     db = get_db()
     return _handle_post(req=req, db=db)
+
+
+def handle_get_users(req: https_fn.Request) -> https_fn.Response:
+    if req.method == "OPTIONS":
+        return cors_preflight_response(origin="*", methods="GET,OPTIONS", headers="Content-Type, X-Admin-Key")
+
+    if req.method != "GET":
+        return error_response(
+            status=405,
+            code="method_not_allowed",
+            message="Only GET is supported",
+            headers=cors_headers(),
+        )
+
+    ensure_firebase_initialized()
+    db = get_db()
+    return _handle_get(req=req, db=db)

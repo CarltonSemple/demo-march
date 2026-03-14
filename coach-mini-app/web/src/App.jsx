@@ -5,6 +5,7 @@ import {
   getProfile,
   listAnnouncements,
   listMeetings,
+  listUsers,
   postAnnouncement,
   updateProfile,
 } from "./api";
@@ -29,6 +30,18 @@ function readFileAsDataUrl(file) {
 
 export default function App() {
   const [view, setView] = useState("profile");
+
+  // User selector
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [activeUserId, setActiveUserId] = useState(() => {
+    try {
+      return window.localStorage.getItem("activeUserId") || "";
+    } catch {
+      return "";
+    }
+  });
 
   // Coach Profile
   const [profileLoading, setProfileLoading] = useState(false);
@@ -112,6 +125,40 @@ export default function App() {
 
   useEffect(() => {
     refreshProfile();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setUsersLoading(true);
+      setUsersError(null);
+      try {
+        const items = await listUsers();
+        if (cancelled) return;
+        setUsers(items);
+
+        setActiveUserId((prev) => {
+          const existing = (prev || "").trim();
+          const existingStillThere = Array.isArray(items) && existing ? items.some((u) => u?.id === existing) : false;
+          const next = existingStillThere ? existing : (items?.[0]?.id || "");
+          try {
+            if (next) window.localStorage.setItem("activeUserId", next);
+          } catch {
+            // ignore
+          }
+          return next;
+        });
+      } catch (e) {
+        if (cancelled) return;
+        setUsersError(e instanceof Error ? e.message : String(e));
+      } finally {
+        if (!cancelled) setUsersLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -236,6 +283,44 @@ export default function App() {
             Meetings
           </button>
         </nav>
+
+        <div className="sidebarFooter" aria-label="User selector">
+          <div className="sidebarFooterTitle">User</div>
+
+          {usersLoading ? <div className="subtle">Loading…</div> : null}
+          {usersError ? (
+            <div className="subtle" title={usersError}>
+              Users unavailable
+            </div>
+          ) : null}
+
+          {!usersLoading && !usersError ? (
+            <select
+              className="sidebarSelect"
+              value={activeUserId || ""}
+              onChange={(e) => {
+                const next = e.target.value;
+                setActiveUserId(next);
+                try {
+                  window.localStorage.setItem("activeUserId", next);
+                } catch {
+                  // ignore
+                }
+              }}
+            >
+              {users.length === 0 ? <option value="">No users found</option> : null}
+              {users.map((u) => {
+                const label = (u?.displayName || "").trim() || (u?.email || "").trim() || u?.id;
+                const role = (u?.role || "").trim();
+                return (
+                  <option key={u.id} value={u.id}>
+                    {label}{role ? ` (${role})` : ""}
+                  </option>
+                );
+              })}
+            </select>
+          ) : null}
+        </div>
       </aside>
 
       <div className="content">

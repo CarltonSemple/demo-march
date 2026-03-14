@@ -5,7 +5,7 @@ from app.announcements import handle_announcements
 from app.hello import handle_hello
 from app.meetings import handle_meetings
 from app.profile import handle_profile
-from app.users import handle_create_user
+from app.users import handle_create_user, handle_get_users
 
 """Firebase HTTPS Cloud Functions entrypoint.
 
@@ -63,6 +63,15 @@ Endpoints
 	- Security:
 		- In emulators: allowed without auth
 		- In non-emulator environments: requires `ADMIN_API_KEY` and `X-Admin-Key` header
+
+`getUsers` (HTTP)
+	- Methods: GET, OPTIONS
+	- CORS: enabled
+	- Purpose: List user documents from Firestore (`users/*`)
+	- Response: 200 JSON `{ "users": [ { id, email, role, displayName, phone } ] }`
+	- Security:
+		- In emulators: allowed without auth
+		- In non-emulator environments: requires `ADMIN_API_KEY` and `X-Admin-Key` header
 """
 
 set_global_options(max_instances=10)
@@ -109,3 +118,12 @@ def createUser(req: https_fn.Request) -> https_fn.Response:
 	See module docstring for request/response shape.
 	"""
 	return handle_create_user(req)
+
+
+@https_fn.on_request(cors=CorsOptions(cors_origins="*", cors_methods=["GET", "OPTIONS"]))
+def getUsers(req: https_fn.Request) -> https_fn.Response:
+	"""List user documents.
+
+	See module docstring for request/response shape.
+	"""
+	return handle_get_users(req)

@@ -15,6 +15,18 @@ function getPythonFunctionBaseUrl() {
 export function createApp() {
   const app = express();
 
+  app.use((req, res, next) => {
+    // Local dev convenience: allow the web UI (often served on a different port)
+    // to call the Express API directly without relying on a dev-proxy.
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Admin-Key");
+    if (req.method === "OPTIONS") {
+      return res.status(204).end();
+    }
+    return next();
+  });
+
   app.use(express.json());
 
   app.get("/health", (_req, res) => {
@@ -289,6 +301,44 @@ export function createApp() {
       }
 
       return res.status(201).json(parsed);
+    } catch (err) {
+      return res.status(500).json({
+        error: "internal_error",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  });
+
+  // Users API (Express) -> Users Cloud Function (Python)
+  app.get("/api/users", async (_req, res) => {
+    try {
+      const pythonBaseUrl = getPythonFunctionBaseUrl();
+      const url = new URL(pythonBaseUrl.replace(/\/+$/, "") + "/getUsers");
+
+      const headers = { Accept: "application/json" };
+      const adminKey = (process.env.ADMIN_API_KEY || "").trim();
+      if (adminKey) {
+        headers["X-Admin-Key"] = adminKey;
+      }
+
+      const resp = await fetch(url, { headers });
+      const rawBody = await resp.text();
+      const contentType = resp.headers.get("content-type") || "";
+
+      if (!contentType.startsWith("application/json")) {
+        return res.status(502).json({
+          error: "python_function_non_json",
+          status: resp.status,
+          body: rawBody,
+        });
+      }
+
+      const parsed = JSON.parse(rawBody);
+      if (!resp.ok) {
+        return res.status(502).json(parsed);
+      }
+
+      return res.status(200).json(parsed);
     } catch (err) {
       return res.status(500).json({
         error: "internal_error",
