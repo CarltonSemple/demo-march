@@ -1,0 +1,46 @@
+name: Python Unit Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  python-unit-tests:
+    name: Cloud Functions unit tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: |
+            cloud-functions/functions/requirements.txt
+            cloud-functions/functions/requirements-dev.txt
+
+      - name: Create Python virtualenv
+        working-directory: cloud-functions/functions
+        run: python -m venv venv
+
+      - name: Install Python dependencies
+        working-directory: cloud-functions/functions
+        run: |
+          . venv/bin/activate
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Run unit tests (exclude integration)
+        working-directory: cloud-functions/functions
+        env:
+          CI: 'true'
+        run: |
+          . venv/bin/activate
+          python -m pytest -q tests --ignore=tests/integration
