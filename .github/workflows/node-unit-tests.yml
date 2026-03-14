@@ -1,0 +1,32 @@
+name: Node Unit Tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  node-unit-tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: coach-mini-app/server/package-lock.json
+
+      - name: Install dependencies
+        working-directory: coach-mini-app/server
+        run: npm ci
+
+      - name: Run unit tests
+        working-directory: coach-mini-app/server
+        run: npm run test:unit
