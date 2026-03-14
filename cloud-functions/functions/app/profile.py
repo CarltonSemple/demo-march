@@ -108,9 +108,26 @@ def handle_profile(req: https_fn.Request) -> https_fn.Response:
             )
 
         assert cleaned is not None
-        cleaned["updatedAt"] = datetime.now(tz=UTC)
+        now = datetime.now(tz=UTC)
+        cleaned["updatedAt"] = now
 
         profiles_ref.set(cleaned, merge=True)
+
+        # Keep user record in sync for duplicated fields.
+        # The UI selects users from the users collection, so this doc should exist in normal flows.
+        user_patch: dict[str, str | datetime] = {}
+        if "email" in cleaned:
+            user_patch["email"] = str(cleaned["email"]).strip().lower()
+        if "name" in cleaned:
+            user_patch["displayName"] = str(cleaned["name"]).strip()
+
+        if user_patch:
+            users_ref = db.collection("users").document(user_id)
+            snap = users_ref.get()
+            if getattr(snap, "exists", False):
+                user_patch["updatedAt"] = now
+                users_ref.set(user_patch, merge=True)
+
         return json_response({"profile": {"userId": user_id, **cleaned}}, status=200, headers=cors_headers())
 
     return error_response(
