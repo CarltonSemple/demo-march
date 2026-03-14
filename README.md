@@ -18,18 +18,18 @@ You’ll typically run 3 terminals.
 
 ### 1) Start Firebase emulators
 
-From `cloud-functions/`:
-
 ```bash
-firebase emulators:start --only functions,firestore,ui
+cd cloud-functions
+docker build -t emulators -f ./Dockerfile.emulators .
+docker run --rm -it -e MAILERSEND_API_KEY="<insert_mailersend_api_key_here>" -e MAIL_FROM_EMAIL="meetings@test-p7kx4xwrpevg9yjr.mlsender.net" -e SEND_FROM_EMULATOR="true" -p 5001:5001 -p 8081:8081 -p 9099:9099 -p 4001:4001 emulators
 ```
 
 Useful URLs/ports:
 - Functions emulator: `http://127.0.0.1:5001/coach-app-demo-3132026/us-central1`
 - Firestore emulator: `127.0.0.1:8081`
+- Auth emulator: `127.0.0.1:9099`
 - Emulator UI: `http://127.0.0.1:4001/`
 
-If `firebase emulators:start` fails, ensure Java is installed and try `firebase setup:emulators:firestore`.
 
 ### 2) Start Express server
 
@@ -84,11 +84,10 @@ These are called by the React UI via Express `/api/*` proxies.
 
 Notes:
 - The demo web UI uses a simple default `groupId` of `demo-group`.
-- In emulator mode, meeting email sending is stubbed (no real email).
 
 ## Email (production)
 
-Meeting creation sends email via MailerSend when not running in emulators.
+In order to send an email via MailerSend, the following is needed.
 
 Environment variables:
 - `MAILERSEND_API_KEY` (required)
