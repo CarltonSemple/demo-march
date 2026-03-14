@@ -11,6 +11,7 @@ import {
 } from "./api";
 
 const DEFAULT_GROUP_ID = "demo-group";
+const MEET_LINK_PREFIX = "https://meet.google.com/";
 
 function formatDateTime(iso) {
   if (!iso) return "";
@@ -48,6 +49,8 @@ export default function App() {
     return users.find((u) => u?.id === activeUserId) || null;
   }, [users, activeUserId]);
 
+  const canPostAnnouncements = (activeUser?.role || "").toLowerCase() === "coach";
+
   const activeProfileUserId = activeUserId || "default";
 
   // Coach Profile
@@ -75,7 +78,7 @@ export default function App() {
   const [meetings, setMeetings] = useState([]);
   const [meetingTitle, setMeetingTitle] = useState("");
   const [meetingDateTimeLocal, setMeetingDateTimeLocal] = useState("");
-  const [meetingLink, setMeetingLink] = useState("https://meet.google.com/");
+  const [meetingLinkSuffix, setMeetingLinkSuffix] = useState("");
   const [meetingAttendees, setMeetingAttendees] = useState("");
   const [creatingMeeting, setCreatingMeeting] = useState(false);
 
@@ -232,15 +235,23 @@ export default function App() {
     setMeetingsError(null);
     try {
       const startsAtIso = meetingDateTimeLocal ? new Date(meetingDateTimeLocal).toISOString() : "";
+
+      let suffix = meetingLinkSuffix.trim();
+      if (suffix.toLowerCase().startsWith(MEET_LINK_PREFIX)) {
+        suffix = suffix.slice(MEET_LINK_PREFIX.length);
+      }
+      suffix = suffix.replace(/^\/+/, "");
+
       await createMeeting({
         groupId,
         title: meetingTitle,
         dateTime: startsAtIso,
-        meetLink: meetingLink,
+        meetLink: `${MEET_LINK_PREFIX}${suffix}`,
         attendees: meetingAttendeesList,
       });
       setMeetingTitle("");
       setMeetingDateTimeLocal("");
+      setMeetingLinkSuffix("");
       setMeetingAttendees("");
       await refreshMeetings();
     } catch (e2) {
@@ -332,11 +343,6 @@ export default function App() {
 
       <div className="content">
         <div className="page">
-          <header className="header">
-            <h1 className="title">Dashboard</h1>
-            <p className="subtle">Manage your profile, announcements, and meetings.</p>
-          </header>
-
           {view === "profile" ? (
             <main className="card">
           <div className="row rowBetween">
@@ -432,24 +438,26 @@ export default function App() {
 
             {announcementsError ? <div className="error">{announcementsError}</div> : null}
 
-            <form className="grid" onSubmit={onPostAnnouncement}>
-              <label className="label">
-                Post an announcement
-                <textarea
-                  className="input textarea"
-                  value={announcementText}
-                  onChange={(e) => setAnnouncementText(e.target.value)}
-                  placeholder="Type an announcement for your group…"
-                  rows={3}
-                />
-              </label>
+            {canPostAnnouncements ? (
+              <form className="grid" onSubmit={onPostAnnouncement}>
+                <label className="label">
+                  Post an announcement
+                  <textarea
+                    className="input textarea"
+                    value={announcementText}
+                    onChange={(e) => setAnnouncementText(e.target.value)}
+                    placeholder="Type an announcement for your group…"
+                    rows={3}
+                  />
+                </label>
 
-              <button className="button" type="submit" disabled={postingAnnouncement}>
-                {postingAnnouncement ? "Posting…" : "Post"}
-              </button>
-            </form>
+                <button className="button" type="submit" disabled={postingAnnouncement}>
+                  {postingAnnouncement ? "Posting…" : "Post"}
+                </button>
+              </form>
+            ) : null}
 
-            <div className="subtle">Visible to group: {groupId}</div>
+            <div className="subtle">{canPostAnnouncements ? `Visible to group: ${groupId}` : groupId}</div>
 
             {announcementsLoading ? <div className="subtle">Loading announcements…</div> : null}
 
@@ -501,17 +509,36 @@ export default function App() {
                     type="datetime-local"
                     value={meetingDateTimeLocal}
                     onChange={(e) => setMeetingDateTimeLocal(e.target.value)}
+                    onMouseDown={(e) => {
+                      try {
+                        e.currentTarget.showPicker?.();
+                      } catch {
+                        // ignore (not supported)
+                      }
+                    }}
+                    onTouchStart={(e) => {
+                      try {
+                        e.currentTarget.showPicker?.();
+                      } catch {
+                        // ignore (not supported)
+                      }
+                    }}
                   />
                 </label>
 
                 <label className="label">
                   Google Meet link
-                  <input
-                    className="input"
-                    value={meetingLink}
-                    onChange={(e) => setMeetingLink(e.target.value)}
-                    placeholder="https://meet.google.com/..."
-                  />
+                  <div className="row" style={{ gap: 6, flexWrap: "nowrap" }}>
+                    <span>{MEET_LINK_PREFIX}</span>
+                    <input
+                      className="input"
+                      value={meetingLinkSuffix}
+                      onChange={(e) => setMeetingLinkSuffix(e.target.value)}
+                      placeholder="abc-defg-hij"
+                      aria-label="Meet link code"
+                      style={{ width: 160 }}
+                    />
+                  </div>
                 </label>
 
                 <label className="label">
