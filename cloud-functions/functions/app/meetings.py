@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import re
 from datetime import UTC, datetime, timedelta
 
 from firebase_admin import firestore
@@ -9,6 +11,37 @@ from .email import send_meeting_email
 from .firebase import ensure_firebase_initialized, get_db, is_emulator_environment
 from .http import cors_headers, cors_preflight_response, error_response, json_response
 from .meetings_validation import validate_meeting_payload
+
+try:
+    from google.api_core.exceptions import AlreadyExists  # type: ignore
+except Exception:  # pragma: no cover
+    AlreadyExists = None
+
+
+_IDEMPOTENCY_SAFE_RE = re.compile(r"^[A-Za-z0-9_-]{1,120}$")
+
+
+def _meeting_doc_id_for_idempotency_key(key: str) -> str:
+    k = (key or "").strip()
+    if _IDEMPOTENCY_SAFE_RE.match(k):
+        return f"idem_{k}"
+    h = hashlib.sha256(k.encode("utf-8")).hexdigest()
+    return f"idem_{h}"
+
+
+def _meeting_payload_from_doc(*, doc_id: str, group_id: str, data: dict) -> dict:
+    starts_at = data.get("startsAt")
+    if hasattr(starts_at, "isoformat"):
+        starts_at = starts_at.astimezone(UTC).isoformat().replace("+00:00", "Z")
+
+    return {
+        "id": doc_id,
+        "groupId": group_id,
+        "title": data.get("title") or "",
+        "startsAt": starts_at or "",
+        "meetLink": data.get("meetLink") or "",
+        "attendees": data.get("attendees") or [],
+    }
 
 
 def _get_group_id_from_args(req: https_fn.Request) -> str | None:
@@ -51,6 +84,9 @@ def _handle_get(*, req: https_fn.Request, db, group_id: str) -> https_fn.Respons
 def _handle_post(*, req: https_fn.Request, db, group_id: str) -> https_fn.Response:
     payload = req.get_json(silent=True, force=True) or {}
 
+    idempotency_key = payload.get("idempotencyKey") or payload.get("idempotency_key")
+    idempotency_key = idempotency_key if isinstance(idempotency_key, str) and idempotency_key.strip() else None
+
     cleaned, errors = validate_meeting_payload(payload)
     if errors:
         return error_response(
@@ -74,16 +110,35 @@ def _handle_post(*, req: https_fn.Request, db, group_id: str) -> https_fn.Respon
         )
 
     meetings_ref = db.collection("groups").document(group_id).collection("meetings")
-    doc_ref = meetings_ref.document()
-    doc_ref.set(
-        {
-            "title": cleaned["title"],
-            "startsAt": starts_at,
-            "meetLink": cleaned["meetLink"],
-            "attendees": cleaned["attendees"],
-            "createdAt": firestore.SERVER_TIMESTAMP,
-        },
-    )
+    data_to_write = {
+        "title": cleaned["title"],
+        "startsAt": starts_at,
+        "meetLink": cleaned["meetLink"],
+        "attendees": cleaned["attendees"],
+        "createdAt": firestore.SERVER_TIMESTAMP,
+    }
+
+    doc_ref = None
+    if idempotency_key:
+        doc_ref = meetings_ref.document(_meeting_doc_id_for_idempotency_key(idempotency_key))
+        try:
+            doc_ref.create(data_to_write)
+        except Exception as exc:
+            is_already_exists = (
+                (AlreadyExists is not None and isinstance(exc, AlreadyExists))
+                or exc.__class__.__name__ == "AlreadyExists"
+            )
+            if not is_already_exists:
+                raise
+
+            snap = doc_ref.get()
+            data = snap.to_dict() if getattr(snap, "exists", False) else {}
+            meeting = _meeting_payload_from_doc(doc_id=doc_ref.id, group_id=group_id, data=data or {})
+            meeting["email"] = {"provider": "dedupe", "sent": True}
+            return json_response({"meeting": meeting}, status=201, headers=cors_headers())
+    else:
+        doc_ref = meetings_ref.document()
+        doc_ref.set(data_to_write)
 
     try:
         email_result = send_meeting_email(

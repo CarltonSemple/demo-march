@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   createMeeting,
@@ -81,6 +81,9 @@ export default function App() {
   const [meetingLinkSuffix, setMeetingLinkSuffix] = useState("");
   const [meetingAttendees, setMeetingAttendees] = useState("");
   const [creatingMeeting, setCreatingMeeting] = useState(false);
+
+  const scheduleMeetingInFlightRef = useRef(false);
+  const scheduleMeetingIdempotencyKeyRef = useRef("");
 
   const meetingAttendeesList = useMemo(() => {
     return meetingAttendees
@@ -231,10 +234,20 @@ export default function App() {
   async function onScheduleMeeting(e) {
     e.preventDefault();
 
+    if (scheduleMeetingInFlightRef.current) return;
+    scheduleMeetingInFlightRef.current = true;
+
     setCreatingMeeting(true);
     setMeetingsError(null);
     try {
       const startsAtIso = meetingDateTimeLocal ? new Date(meetingDateTimeLocal).toISOString() : "";
+
+      if (!scheduleMeetingIdempotencyKeyRef.current) {
+        const uuid = (typeof crypto !== "undefined" && crypto && typeof crypto.randomUUID === "function")
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        scheduleMeetingIdempotencyKeyRef.current = `schedule-${uuid}`;
+      }
 
       let suffix = meetingLinkSuffix.trim();
       if (suffix.toLowerCase().startsWith(MEET_LINK_PREFIX)) {
@@ -248,16 +261,19 @@ export default function App() {
         dateTime: startsAtIso,
         meetLink: `${MEET_LINK_PREFIX}${suffix}`,
         attendees: meetingAttendeesList,
+        idempotencyKey: scheduleMeetingIdempotencyKeyRef.current,
       });
       setMeetingTitle("");
       setMeetingDateTimeLocal("");
       setMeetingLinkSuffix("");
       setMeetingAttendees("");
+      scheduleMeetingIdempotencyKeyRef.current = "";
       await refreshMeetings();
     } catch (e2) {
       setMeetingsError(e2 instanceof Error ? e2.message : String(e2));
     } finally {
       setCreatingMeeting(false);
+      scheduleMeetingInFlightRef.current = false;
     }
   }
 
@@ -568,6 +584,9 @@ export default function App() {
                       <li key={m.id} className="listItem">
                         <div className="listMain">{m.title}</div>
                         <div className="subtle">{formatDateTime(m.startsAt || m.dateTime)}</div>
+                        <div className="subtle">
+                          Attendees: {Array.isArray(m.attendees) && m.attendees.length ? m.attendees.join(", ") : "—"}
+                        </div>
                         <a className="link" href={m.meetLink} target="_blank" rel="noreferrer">
                           Join link
                         </a>
