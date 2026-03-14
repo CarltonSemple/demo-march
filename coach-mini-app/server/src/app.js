@@ -198,6 +198,9 @@ export function createApp() {
       const pythonBaseUrl = getPythonFunctionBaseUrl();
       const url = new URL(pythonBaseUrl.replace(/\/+$/, "") + "/profile");
 
+      const coachId = typeof req.query.coachId === "string" ? req.query.coachId.trim() : "";
+      if (coachId) url.searchParams.set("coachId", coachId);
+
       const resp = await fetch(url, {
         method: "PUT",
         headers: {
